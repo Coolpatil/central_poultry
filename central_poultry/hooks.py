@@ -242,11 +242,48 @@ app_license = "mit"
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
-fixtures = [
-    {
-        "dt": "DocType",
-        "filters": [
-            ["name", "in", ["Blast In", "Blast In Table"]]
-        ]
-    }
-]
+import frappe
+from pathlib import Path
+
+def get_fixtures():
+    """Get all doctypes, client scripts and server scripts"""
+    module_name = "Your Module Name"  # Change this
+    
+    try:
+        # Try database query first
+        doctypes = frappe.get_all(
+            "DocType",
+            filters={"module": module_name, "istable": 0},
+            pluck="name"
+        )
+        
+        # Include child table doctypes
+        child_tables = frappe.get_all(
+            "DocType",
+            filters={"module": module_name, "istable": 1},
+            pluck="name"
+        )
+        
+        return (
+            doctypes + 
+            child_tables + 
+            [
+                {"dt": "Client Script", "filters": [["module", "=", module_name]]},
+                {"dt": "Server Script", "filters": [["module", "=", module_name]]}
+            ]
+        )
+    except:
+        # Fallback to directory scan
+        app_path = Path(__file__).parent
+        doctype_path = app_path / "your_app_name" / "doctype"
+        
+        if doctype_path.exists():
+            return [
+                folder.name.replace("_", " ").title()
+                for folder in doctype_path.iterdir()
+                if folder.is_dir() and not folder.name.startswith("_")
+            ]
+        return []
+
+fixtures = get_fixtures()
+
